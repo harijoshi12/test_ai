@@ -14,6 +14,7 @@ export const getOpenAIResponse = async (userInput) => {
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages,
+      temperature: 0.2,
     });
 
     // Log the entire response for debugging purposes
