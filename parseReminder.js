@@ -29,47 +29,68 @@ export const parseReminder = async (input) => {
 
     const response = await getOpenAIResponse(prompt);
 
-    // Extract JSON from the content using a regular expression
+    // Extract JSON from the response using a regular expression
     const jsonMatch = response.match(/```json\n([\s\S]*?)\n```/);
-    if (jsonMatch && jsonMatch[1]) {
-      const reminderDetails = JSON.parse(jsonMatch[1]);
-      console.log("Parsed OpenAI response:", reminderDetails);
-
-      // Handle default times if the time is not specified
-      if (!reminderDetails.time) {
-        const timeKeyword = input.match(/morning|afternoon|evening|night/i);
-        if (timeKeyword) {
-          reminderDetails.time = defaultTimes[timeKeyword[0].toLowerCase()];
-        } else {
-          // Add missing time to missingInfo
-          reminderDetails.missingInfo = reminderDetails.missingInfo || [];
-          reminderDetails.missingInfo.push("time");
-        }
-      }
-
-      // Check for other missing information
-      if (!reminderDetails.task) {
-        reminderDetails.missingInfo = reminderDetails.missingInfo || [];
-        reminderDetails.missingInfo.push("task");
-      }
-      if (!reminderDetails.recurrence && input.includes("every")) {
-        reminderDetails.missingInfo = reminderDetails.missingInfo || [];
-        reminderDetails.missingInfo.push("recurrence");
-      }
-      if (!reminderDetails.startDate && input.includes("starting")) {
-        reminderDetails.missingInfo = reminderDetails.missingInfo || [];
-        reminderDetails.missingInfo.push("start date");
-      }
-      if (!reminderDetails.endDate && input.includes("for")) {
-        reminderDetails.missingInfo = reminderDetails.missingInfo || [];
-        reminderDetails.missingInfo.push("end date");
-      }
-
-      // Return the parsed reminder details
-      return reminderDetails;
-    } else {
+    if (!jsonMatch || !jsonMatch[1]) {
       throw new Error("Failed to extract JSON from OpenAI response");
     }
+
+    // Parse the extracted JSON
+    const reminderDetails = JSON.parse(jsonMatch[1]);
+    console.log("Parsed OpenAI response:", reminderDetails);
+
+    // Initialize missingInfo if not already present
+    reminderDetails.missingInfo = reminderDetails.missingInfo || [];
+
+    // Handle default times if the time is not specified
+    if (!reminderDetails.time) {
+      const timeKeyword = input.match(/morning|afternoon|evening|night/i);
+      if (timeKeyword) {
+        reminderDetails.time = defaultTimes[timeKeyword[0].toLowerCase()];
+      } else if (!reminderDetails.missingInfo.includes("time")) {
+        // Add missing time to missingInfo
+        reminderDetails.missingInfo.push("time");
+      }
+    }
+
+    // Check for other missing information based on context
+    if (
+      !reminderDetails.task &&
+      !reminderDetails.missingInfo.includes("task")
+    ) {
+      reminderDetails.missingInfo.push("task");
+    }
+    if (
+      !reminderDetails.recurrence &&
+      input.includes("every") &&
+      !reminderDetails.missingInfo.includes("recurrence")
+    ) {
+      reminderDetails.missingInfo.push("recurrence");
+    }
+    if (
+      !reminderDetails.startDate &&
+      input.includes("starting") &&
+      !reminderDetails.missingInfo.includes("start date")
+    ) {
+      reminderDetails.missingInfo.push("start date");
+    }
+    if (
+      !reminderDetails.endDate &&
+      input.includes("for") &&
+      !reminderDetails.missingInfo.includes("end date")
+    ) {
+      reminderDetails.missingInfo.push("end date");
+    }
+    if (
+      !reminderDetails.interval &&
+      input.includes("every") &&
+      !reminderDetails.missingInfo.includes("interval")
+    ) {
+      reminderDetails.missingInfo.push("interval");
+    }
+
+    // Return the parsed reminder details
+    return reminderDetails;
   } catch (error) {
     console.error("Error parsing reminder:", error);
     return null;
